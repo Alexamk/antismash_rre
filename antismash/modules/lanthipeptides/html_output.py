@@ -37,4 +37,9 @@ def generate_html(region_layer: RegionLayer, results: LanthiResults,
     motifs = results.get_motifs_for_region(region_layer.region_feature)
     html.add_sidepanel_section("Lanthipeptides", template.render(results=motifs, tooltip=side_tooltip))
 
+    rre_tooltip = ("Lists the RiPP recognition elements (RREs) detected by RREfinder. " )
+
+    template_rre = FileTemplate(path.get_full_path(__file__, "templates", "sidepanel_rre.html"))
+    html.add_sidepanel_section("RREfinder", template_rre.render(results=results.RRE_by_locus, tooltip=rre_tooltip))
+
     return html
