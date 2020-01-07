@@ -1,0 +1,31 @@
+<div class="more-details">
+  <div class="heading">
+    <span>RREfinder hits</span>
+    {{help_tooltip(tooltip, "lanthi-side")}}
+  </div>
+{% if results | length != 0 %}
+    <dl class ="prediction-text">
+    {% for locus,data in results.items() %}
+      <dt>{{locus}}</dt> 
+      {%- for hit in data -%}
+        <dd>RREfinder mode: {{hit.mode}}</dd>
+        {% if hit.mode == 'precision' %}
+          <dd>Score: {{'%0.2f' | format(hit.score)}}</dd>
+        {% elif hit.mode == 'exploratory' %}
+          {% if hit.resubmit %}
+          <dd>Score prefilter: {{'%0.2f' | format(hit.score1)}}</dd>
+          <dd>Score HHPred: {{'%0.2f' | format(hit.score2)}}</dd>
+          {% else %}
+          <dd>Score: {{'%0.2f' | format(hit.score2)}}</dd>
+          {% endif %}
+        {% endif %}
+        <dd>Start: {{hit.start}}</dd>
+        <dd>End: {{hit.end}}</dd>
+      {%- endfor -%}
+    {% endfor %}
+  </dl>
+{% else %}
+  <div class="prediction-text">No RRE domains found.</div>
+{% endif %}
+</div>
+
