@@ -100,12 +100,14 @@ def check_prereqs(options: ConfigType) -> List[str]:
     return failure_messages
 
 
-def run_on_record(record: Record, results: LanthiResults, _options: ConfigType) -> LanthiResults:
+def run_on_record(record: Record, results: LanthiResults, options: ConfigType) -> LanthiResults:
     """ Runs the lanthipeptide analysis over the given record, if the existing
         results can't be reused.
 
-        Options aren't used here as the lanthipeptide module has no extra options.
+        ##Options aren't used here as the lanthipeptide module has no extra options.
+        Options are now used to specify the settings of RREfinder
+        
     """
     if isinstance(results, LanthiResults) and results.record_id == record.id:
         return results
-    return run_specific_analysis(record)
+    return run_specific_analysis(record,options)
