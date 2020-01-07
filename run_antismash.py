@@ -6,4 +6,4 @@ Convenience wrapper to run antiSMASH directly from the source tree without insta
 from antismash.__main__ import entrypoint
 
 if __name__ == '__main__':
-    entrypoint()
+    results,options = entrypoint()

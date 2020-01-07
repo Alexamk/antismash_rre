@@ -676,7 +676,7 @@ def _run_antismash(sequence_file: Optional[str], options: ConfigType) -> int:
         analysis_timings = analyse_record(record, options, analysis_modules, module_results)
         timings.update(analysis_timings)
         results.timings_by_record[record.id] = timings
-
+    
     # Write results
     json_filename = os.path.join(options.output_dir, results.input_file)
     json_filename = os.path.splitext(json_filename)[0] + ".json"
@@ -706,8 +706,8 @@ def _run_antismash(sequence_file: Optional[str], options: ConfigType) -> int:
                   datetime.now().strftime("%Y-%m-%d %H:%M:%S"), str(running_time))
 
     logging.info("antiSMASH status: SUCCESS")
-    return 0
-
+    #return 0
+    return results
 
 def _log_found_executables(options: ConfigType) -> None:
     for binary, path in vars(options.executables).items():
