@@ -20,8 +20,12 @@ from antismash.common.secmet import CDSFeature, Protocluster, GeneFunction, Prep
 from antismash.common.secmet.features import CDSCollection
 from antismash.common.secmet.locations import location_from_string
 from antismash.common.secmet.qualifiers.prepeptide_qualifiers import LanthiQualifier
+from antismash.config import ConfigType
 
 from .rodeo import run_rodeo
+
+from .RRE import main as RRE_main
+
 
 KNOWN_PRECURSOR_DOMAINS = set([
     'Antimicr18',
@@ -67,6 +71,8 @@ class LanthiResults(module_results.ModuleResults):
         # keep clusters and which genes in them had precursor hits
         # e.g. self.clusters[cluster_number] = {gene1_locus, gene2_locus}
         self.clusters = defaultdict(set)  # type: Dict[int, Set[str]]
+        # keep RREhits
+        self.RRE_by_locus = defaultdict(list)
 
     def to_json(self) -> Dict[str, Any]:
         cds_features = [(str(feature.location), feature.get_name()) for feature in self.new_cds_features]
@@ -704,7 +710,7 @@ def run_lanthi_on_genes(record: Record, focus: CDSFeature, cluster: Protocluster
             results.new_cds_features.add(candidate)
 
 
-def run_specific_analysis(record: Record) -> LanthiResults:
+def run_specific_analysis(record: Record, options: ConfigType) -> LanthiResults:
     """ Runs the full lanthipeptide analysis over the given record
 
         Arguments:
@@ -742,6 +748,9 @@ def run_specific_analysis(record: Record) -> LanthiResults:
             if not neighbours:
                 continue
             run_lanthi_on_genes(record, gene, cluster, neighbours, results)
+
+    # Analyze the cluster with RREfinder
+    RRE_main(record,results)
 
     logging.debug("Lanthipeptide module marked %d motifs", sum(map(len, results.motifs_by_locus)))
     return results
