@@ -25,7 +25,7 @@ from antismash.config import ConfigType
 from .rodeo import run_rodeo
 
 from .RRE import main as RRE_main
-
+from .RRE import RREResult
 
 KNOWN_PRECURSOR_DOMAINS = set([
     'Antimicr18',
@@ -119,6 +119,18 @@ class LanthiResults(module_results.ModuleResults):
         for cluster in region.get_unique_protoclusters():
             for locus in self.clusters.get(cluster.get_protocluster_number(), []):
                 results[locus] = self.motifs_by_locus[locus]
+        return results
+        
+    def get_RREs_for_region(self, region: Region) -> Dict[str, List[RREResult]]:
+        """ Given a region, return a subset of motifs_by_locus for hits within
+            that region
+        """
+        results = {}
+        for cluster in region.get_unique_protoclusters():
+            for locus in cluster.cds_children:
+                name = locus.get_name()
+                if name in self.RRE_by_locus:
+                    results[name] = self.RRE_by_locus[name]
         return results
 
 
@@ -720,6 +732,7 @@ def run_specific_analysis(record: Record, options: ConfigType) -> LanthiResults:
             A populated LanthiResults object
     """
     results = LanthiResults(record.id)
+    counter = 0
     for cluster in record.get_protoclusters():
         if cluster.product != 'lanthipeptide':
             continue
@@ -749,8 +762,10 @@ def run_specific_analysis(record: Record, options: ConfigType) -> LanthiResults:
                 continue
             run_lanthi_on_genes(record, gene, cluster, neighbours, results)
 
-    # Analyze the cluster with RREfinder
-    RRE_main(record,results)
+        # Analyze the cluster with RREfinder
+        counter += 1
+        name = '%s_%s_%s' %(record.id,cluster.product,counter)
+        RRE_main(cluster,results,name)
 
     logging.debug("Lanthipeptide module marked %d motifs", sum(map(len, results.motifs_by_locus)))
     return results
