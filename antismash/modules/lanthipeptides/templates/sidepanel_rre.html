@@ -10,6 +10,7 @@
       {%- for hit in data -%}
         <dd>RREfinder mode: {{hit.mode}}</dd>
         {% if hit.mode == 'precision' %}
+          <dd>Model: {{hit.model}}</dd>
           <dd>Score: {{'%0.2f' | format(hit.score)}}</dd>
         {% elif hit.mode == 'exploratory' %}
           {% if hit.resubmit %}
@@ -21,6 +22,7 @@
         {% endif %}
         <dd>Start: {{hit.start}}</dd>
         <dd>End: {{hit.end}}</dd>
+        <br>
       {%- endfor -%}
     {% endfor %}
   </dl>
