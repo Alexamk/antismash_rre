@@ -17,9 +17,13 @@ from Bio.SearchIO._model.hsp import HSP
 from sklearn.externals import joblib
 
 from antismash.common import utils, all_orfs, module_results, secmet, subprocessing, path, fasta
+from antismash.common.secmet import Region
 from antismash.common.secmet.qualifiers import SecMetQualifier
 from antismash.common.secmet.locations import location_from_string
 from antismash.common.signature import HmmSignature
+
+from antismash.modules.lanthipeptides.RRE import main as RRE_main
+from antismash.modules.lanthipeptides.RRE import RREResult
 
 # Cys chain limits (for CnnnC style sections)
 CHAIN_LOWER = 1  # CnC
@@ -42,6 +46,9 @@ class SactiResults(module_results.ModuleResults):
         # keep clusters and which genes in them had precursor hits
         # e.g. self.clusters[cluster_number] = {gene1_locus, gene2_locus}
         self.clusters = defaultdict(set)  # type: Dict[int, Set[str]]
+        # keep RREhits
+        self.RRE_by_locus = defaultdict(list)
+
 
     def to_json(self) -> Dict[str, Any]:
         cds_features = [(str(feature.location),
@@ -78,7 +85,18 @@ class SactiResults(module_results.ModuleResults):
         for motifs in self.motifs_by_locus.values():
             for motif in motifs:
                 record.add_cds_motif(motif)
-
+                
+    def get_RREs_for_region(self, region: Region) -> Dict[str, List[RREResult]]:
+        """ Given a region, return a subset of motifs_by_locus for hits within
+            that region
+        """
+        results = {}
+        for cluster in region.get_unique_protoclusters():
+            for locus in cluster.cds_children:
+                name = locus.get_name()
+                if name in self.RRE_by_locus:
+                    results[name] = self.RRE_by_locus[name]
+        return results
 
 def get_detected_domains(cluster: secmet.Protocluster) -> Dict[str, int]:
     """ Gathers all detected domain ids from a cluster. Includes detection of
@@ -579,6 +597,7 @@ def specific_analysis(record: secmet.Record) -> SactiResults:
     results = SactiResults(record.id)
     new_feature_hits = 0
     motif_count = 0
+    counter = 0
     for cluster in record.get_protoclusters():
         if cluster.product != 'sactipeptide':
             continue
@@ -605,6 +624,11 @@ def specific_analysis(record: secmet.Record) -> SactiResults:
             if candidate.region is None:
                 results.new_cds_features.add(candidate)
                 new_feature_hits += 1
+                
+        # Analyze the cluster with RREfinder
+        counter += 1
+        name = '%s_%s_%s' %(record.id,cluster.product,counter)
+        RRE_main(cluster,results,name)
 
     if not motif_count:
         logging.debug("Found no sactipeptide motifs")

@@ -58,5 +58,11 @@ def generate_html(region_layer: RegionLayer, results: ThioResults,
                                 cluster=thio_layer,
                                 options=options_layer,
                                 tooltip=side_tooltip)
-    html.add_sidepanel_section("Thiopeptides", sidepanel)
+    html.add_sidepanel_section("Thiopeptides", sidepanel,'')
+    
+    rre_tooltip = ("Lists the RiPP recognition elements (RREs) detected by RREfinder. " )
+    template_rre = FileTemplate(path.get_full_path(__file__, "templates", "sidepanel_rre.html"))
+    RREs = results.get_RREs_for_region(region_layer.region_feature)
+    html.add_sidepanel_section("RREfinder", template_rre.render(results=RREs, tooltip=rre_tooltip), 'RREfinder')
+    
     return html

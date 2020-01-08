@@ -13,9 +13,12 @@ import os
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from antismash.common import all_orfs, fasta, module_results, path, secmet, subprocessing, utils
+from antismash.common.secmet import Region
 from antismash.common.secmet.qualifiers.prepeptide_qualifiers import ThioQualifier
 from antismash.common.signature import HmmSignature
 
+from antismash.modules.lanthipeptides.RRE import main as RRE_main
+from antismash.modules.lanthipeptides.RRE import RREResult
 from .rodeo import run_rodeo
 
 
@@ -30,6 +33,8 @@ class ThioResults(module_results.ModuleResults):
         self.cds_features = defaultdict(list)  # type: Dict[int, List[secmet.CDSFeature]]
         # to track the motifs created
         self.motifs = []  # type: List[secmet.Prepeptide]
+        # keep RREhits
+        self.RRE_by_locus = defaultdict(list)
 
     def to_json(self) -> Dict[str, Any]:
         """ Converts the results to JSON format """
@@ -66,6 +71,18 @@ class ThioResults(module_results.ModuleResults):
 
         for motif in self.motifs:
             record.add_cds_motif(motif)
+            
+    def get_RREs_for_region(self, region: Region) -> Dict[str, List[RREResult]]:
+        """ Given a region, return a subset of motifs_by_locus for hits within
+            that region
+        """
+        results = {}
+        for cluster in region.get_unique_protoclusters():
+            for locus in cluster.cds_children:
+                name = locus.get_name()
+                if name in self.RRE_by_locus:
+                    results[name] = self.RRE_by_locus[name]
+        return results
 
 
 class Thiopeptide:
@@ -584,6 +601,7 @@ def specific_analysis(record: secmet.Record) -> ThioResults:
         that are found not overlapping with existing features
     """
     results = ThioResults(record.id)
+    counter = 0
     for cluster in record.get_protoclusters():
         if cluster.product != "thiopeptide":
             continue
@@ -610,5 +628,11 @@ def specific_analysis(record: secmet.Record) -> ThioResults:
                 results.cds_features[cluster.get_protocluster_number()].append(thio_feature)
             results.motifs.append(new_feature)
             results.clusters_with_motifs.add(cluster)
+
+        # Analyze the cluster with RREfinder
+        counter += 1
+        name = '%s_%s_%s' %(record.id,cluster.product,counter)
+        RRE_main(cluster,results,name)
+            
     logging.debug("Thiopeptides marked %d motifs", len(results.motifs))
     return results

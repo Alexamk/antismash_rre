@@ -6,7 +6,7 @@
 {% if results | length != 0 %}
     <dl class ="prediction-text">
     {% for locus,data in results.items() %}
-      <dt>{{locus}}</dt> 
+      <dt><span class="serif">{{locus}}</span></dt> 
       {%- for hit in data -%}
         <dd>RREfinder mode: {{hit.mode}}</dd>
         {% if hit.mode == 'precision' %}
