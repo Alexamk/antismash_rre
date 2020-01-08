@@ -1230,7 +1230,10 @@ def main(record, lanthi_results):
 
     # Now convert the record ID to the objects used in this script
     all_groups,skipped_genes = convert_record(record,settings)
-    
+    if len(all_groups) == 0:
+        # No genes analyzed, probably not a RiPP gene cluster
+        return        
+        
     settings.logger.log('Continuing with %i queries, %i of which are groups of genes' %(len(all_groups), len([g for g in all_groups if g.group])),1)
     settings.logger.log('Skipped %i genes' %(len(skipped_genes)),2)
     if settings.mode == 'rrefinder' or settings.mode == 'both':
@@ -1348,6 +1351,10 @@ def parse_config(configpath):
 
 def parse_settings(configpath,record):
     settings = parse_config(configpath)
+    if settings.mode == 'precision':
+        settings.mode = 'rrefam'
+    elif settings.mode == 'exploratory':
+        settings.mode = 'rrefinder'
     settings.project_name = record.id
     return settings
 
