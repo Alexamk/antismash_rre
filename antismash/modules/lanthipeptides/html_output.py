@@ -28,7 +28,7 @@ def generate_html(region_layer: RegionLayer, results: LanthiResults,
                       "Each core peptide shows the leader and core peptide sequences, separated by a dash.")
     template = FileTemplate(path.get_full_path(__file__, "templates", "details.html"))
     motifs = results.get_motifs_for_region(region_layer.region_feature)
-    html.add_detail_section("Lanthipeptides", template.render(results=motifs, tooltip=detail_tooltip))
+    html.add_detail_section("Lanthipeptides", template.render(results=motifs, tooltip=detail_tooltip), '')
 
     side_tooltip = ("Lists the possible core peptides in the region. "
                     "Each core peptide lists the number of lanthionine bridges, possible molecular weights, "
@@ -40,6 +40,6 @@ def generate_html(region_layer: RegionLayer, results: LanthiResults,
     rre_tooltip = ("Lists the RiPP recognition elements (RREs) detected by RREfinder. " )
 
     template_rre = FileTemplate(path.get_full_path(__file__, "templates", "sidepanel_rre.html"))
-    html.add_sidepanel_section("RREfinder", template_rre.render(results=results.RRE_by_locus, tooltip=rre_tooltip))
+    html.add_sidepanel_section("RREfinder", template_rre.render(results=results.RRE_by_locus, tooltip=rre_tooltip), 'RREfinder')
 
     return html
