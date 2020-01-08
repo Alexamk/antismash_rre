@@ -1189,7 +1189,7 @@ def add_results(all_groups,lanthi_results,resubmit=True):
         if hasattr(group,'RREfam_hit') and group.RREfam_hit:
             _,all_data = group.RREfam_data
             for domain,data in all_data.items():
-                rre_result = RREResult('precision',start=data[0],end=data[1],score=data[3])
+                rre_result = RREResult('precision',start=data[0],end=data[1],score=data[3],model=domain)
                 gene_results.append(rre_result)
         # Exploratory mode results
         # First check if it was run with resubmit
