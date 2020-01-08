@@ -264,11 +264,7 @@ def add_ss(group,settings,resubmit=False,remove=False):
                 stdout = str(stdout, 'utf-8')
             if type(stderr) == bytes:
                 stderr = str(stderr, 'utf-8')
-            print('Stdout')
-            print(stdout)
             settings.logger.log(stdout,2)
-            print('Stderr')
-            print(stderr)
             settings.logger.log(stderr,2)
         if resubmit:
             group.RRE_expalign_file = newfile
@@ -370,47 +366,42 @@ def make_gene_objects(seq_dict,settings):
         
     return all_genes,skipped
     
-def convert_record(record,settings):
+def convert_cluster(cluster,settings):
     all_genes = []
     skipped = []
-    antismash_ripps = ['bacteriocin','cyanobactin','lanthipeptide',\
-                           'lassopeptide','linaridin','thiopeptide','sactipeptide',\
-                           'proteusin','glycocin','bottromycin','microcin']
-    for cluster in record.get_protoclusters():
-        if cluster.product not in antismash_ripps:
-            continue
-        for cdsfeature in cluster.cds_children:
-            org_name = cdsfeature.get_name()
-            # Make sure it contains no illegal characters
-            clean_name = org_name
-            clean_name.replace(' ','')
-            for char in '();:<>|/\\"':
-                clean_name = clean_name.replace(char,'')
-            clean_name = clean_name.replace("'",'')
-            seq = cdsfeature.translation
-            
-            if settings.max_length_prot and len(seq) > settings.max_length_prot:
-                settings.logger.log('Not analyzing gene %s (too long)' %(clean_name),2)
-                skipped.append(clean_name)
-                continue
-
-            fasta_file = os.path.join(settings.fasta_folder,clean_name + '.fasta')
-            results_file = os.path.join(settings.results_folder, '%s.hhr' %(clean_name))
-            fasta = '>%s\n%s\n' %(clean_name,seq)
-            gene_obj = Container()
-            gene_obj.setattrs(fasta_file=fasta_file,results_file=results_file,fasta=fasta,name=clean_name,group=False,org_name=org_name)
-            if settings.mode != 'rrefam' and settings.rrefinder_primary_mode == 'hhpred':
-                exp_alignment_file = os.path.join(settings.fasta_folder,'%s_expalign.a3m' %clean_name)
-                gene_obj.exp_alignment_file = exp_alignment_file
-            all_genes.append(gene_obj)
-            
-            if settings.resubmit:
-                # Set extra paths for the files
-                RRE_fasta_file = os.path.join(settings.fasta_folder,clean_name+'_RRE.fasta')
-                RRE_results_file = os.path.join(settings.results_folder,clean_name+'_RRE.hhr')
-                RRE_expalign_file = os.path.join(settings.fasta_folder,clean_name+'_RRE_expalign.a3m')
-                gene_obj.setattrs(RRE_fasta_file=RRE_fasta_file,RRE_results_file=RRE_results_file,RRE_expalign_file=RRE_expalign_file)
+    
+    for cdsfeature in cluster.cds_children:
+        org_name = cdsfeature.get_name()
+        # Make sure it contains no illegal characters
+        clean_name = org_name
+        clean_name.replace(' ','')
+        for char in '();:<>|/\\"':
+            clean_name = clean_name.replace(char,'')
+        clean_name = clean_name.replace("'",'')
+        seq = cdsfeature.translation
         
+        if settings.max_length_prot and len(seq) > settings.max_length_prot:
+            settings.logger.log('Not analyzing gene %s (too long)' %(clean_name),2)
+            skipped.append(clean_name)
+            continue
+
+        fasta_file = os.path.join(settings.fasta_folder,clean_name + '.fasta')
+        results_file = os.path.join(settings.results_folder, '%s.hhr' %(clean_name))
+        fasta = '>%s\n%s\n' %(clean_name,seq)
+        gene_obj = Container()
+        gene_obj.setattrs(fasta_file=fasta_file,results_file=results_file,fasta=fasta,name=clean_name,group=False,org_name=org_name)
+        if settings.mode != 'rrefam' and settings.rrefinder_primary_mode == 'hhpred':
+            exp_alignment_file = os.path.join(settings.fasta_folder,'%s_expalign.a3m' %clean_name)
+            gene_obj.exp_alignment_file = exp_alignment_file
+        all_genes.append(gene_obj)
+        
+        if settings.resubmit:
+            # Set extra paths for the files
+            RRE_fasta_file = os.path.join(settings.fasta_folder,clean_name+'_RRE.fasta')
+            RRE_results_file = os.path.join(settings.results_folder,clean_name+'_RRE.hhr')
+            RRE_expalign_file = os.path.join(settings.fasta_folder,clean_name+'_RRE_expalign.a3m')
+            gene_obj.setattrs(RRE_fasta_file=RRE_fasta_file,RRE_results_file=RRE_results_file,RRE_expalign_file=RRE_expalign_file)
+    
     return all_genes,skipped
 
 def make_group_objects(groups,seq_dict,fasta_folder,results_folder,settings):
@@ -968,7 +959,7 @@ def rrefinder_main(settings,RRE_targets,all_groups):
     if settings.rrefinder_primary_mode == 'hmm':
         run_hmm(all_groups,settings)
         if settings.resubmit:
-            if int(settings.cores) < len(all_groups) and int(settings.cores) > 1:
+            if int(settings.cores) < len([i for i in all_groups if i.RRE_hit]) and int(settings.cores) > 1:
                 # Resubmit with pipeline operator if multiple cores are used and the amount of cores is smaller than the amount of jobs
                 pos_groups,_ = pipeline_operator([i for i in all_groups if i.RRE_hit],settings,pipeline_resubmit_worker)
                 all_groups = [i for i in all_groups if not i.RRE_hit] + pos_groups
@@ -1104,7 +1095,7 @@ def determine_regulator_overlap(hmm_results,all_groups,settings):
                     RRE_data[hit].append(overlaps_to_append[0:3])
            
                         
-def make_folders(settings):
+def set_folders(settings):
     if not os.path.isdir(settings.outputfolder):
         os.mkdir(settings.outputfolder)
     data_folder = os.path.join(settings.outputfolder,settings.project_name)
@@ -1115,8 +1106,9 @@ def make_folders(settings):
     fasta_folder = os.path.join(data_folder,'fastas')
     results_folder = os.path.join(data_folder,'results')
     settings.setattrs(fasta_folder=fasta_folder,results_folder=results_folder,data_folder=data_folder,logfile=logfile,log_folder=log_folder)
-        
-    for folder in data_folder,fasta_folder,results_folder,log_folder:
+    
+def make_folders(settings):
+    for folder in settings.data_folder,settings.fasta_folder,settings.results_folder,settings.log_folder:
         if not os.path.isdir(folder):
             os.mkdir(folder)
 
@@ -1160,13 +1152,16 @@ def parse_infiles(settings):
     
 def get_best_hit(rre_data):
     mode,all_data = rre_data
-    best_data = [0]
+    best_data = [0,0,0,0]
+    print(mode)
     if mode == 'hmm':
         for domain,data in all_data.items():
-            if data[-1] > best_data[-1]:
+            print(domain,data,best_data)
+            if data[3] > best_data[3]:
+                print('Using new data %s' %(data))
                 best_data = data
                 best_domain = domain
-        best_score = best_data[-1]
+        best_score = best_data[3]
         best_start = best_data[0]
         best_end = best_data[1]
     elif mode == 'hhpred':
@@ -1177,9 +1172,6 @@ def get_best_hit(rre_data):
         best_score = best_data[0]
         best_start,best_end = [int(i) for i in best_data[6].split('-')]
     return best_domain,best_data,best_score, best_start, best_end
-    
-
-    
     
 def add_results(all_groups,lanthi_results,resubmit=True):
     all_results = {}
@@ -1208,34 +1200,37 @@ def add_results(all_groups,lanthi_results,resubmit=True):
             gene_results.append(rre_result)
         if gene_results != []:
             all_results[group.org_name] = gene_results
-    lanthi_results.RRE_by_locus = all_results      
+    lanthi_results.RRE_by_locus.update(all_results)      
       
-def main(record, lanthi_results):
+def main(cluster, lanthi_results, name):
     
     configpath = 'RREfinder_config.ini'
-    settings = parse_settings(os.path.join(os.path.dirname(__file__),configpath),record)
+    settings = parse_settings(os.path.join(os.path.dirname(__file__),configpath),name)
     if settings.rrefinder_primary_mode == 'hhpred' and not settings.expand_database_path:
         print('Using HHpred as initial mode for RREfinder requires an HHblits database. Please set the path in the config file')
         exit()
     t0 = time.time()
 
-    # Prepwork
-    # Make some folders
-    make_folders(settings)
-    # Set the logfile
+    # Set folders and other files
+    set_folders(settings)
+    
+    # Make the logfile
     logger = Log(settings.logfile,settings.verbosity)
     settings.logger = logger
+
+    # Convert the cluster to the objects used in this script
+    all_groups,skipped_genes = convert_cluster(cluster,settings)
+    if len(all_groups) == 0:
+        # No genes to be analyzed
+        return
+
+    # Make some folders
+    make_folders(settings)
     # Get the names of the targets that are considered RRE hits
     RRE_targets = parse_fasta(settings.rre_fasta_path).keys()
-
-    # Now convert the record ID to the objects used in this script
-    all_groups,skipped_genes = convert_record(record,settings)
-    if len(all_groups) == 0:
-        # No genes analyzed, probably not a RiPP gene cluster
-        return        
         
-    settings.logger.log('Continuing with %i queries, %i of which are groups of genes' %(len(all_groups), len([g for g in all_groups if g.group])),1)
-    settings.logger.log('Skipped %i genes' %(len(skipped_genes)),2)
+    settings.logger.log('Analyzing %i queries' %len(all_groups),1)
+    settings.logger.log('Skipped %i queries (too long)' %(len(skipped_genes)),2)
     if settings.mode == 'rrefinder' or settings.mode == 'both':
         all_groups = rrefinder_main(settings,RRE_targets,all_groups)
     if settings.mode == 'rrefam' or settings.mode == 'both':
@@ -1349,13 +1344,13 @@ def parse_config(configpath):
             setattr(settings,item,value)
     return settings
 
-def parse_settings(configpath,record):
+def parse_settings(configpath,name):
     settings = parse_config(configpath)
     if settings.mode == 'precision':
         settings.mode = 'rrefam'
     elif settings.mode == 'exploratory':
         settings.mode = 'rrefinder'
-    settings.project_name = record.id
+    settings.project_name = name
     return settings
 
 #if __name__ == '__main__':
