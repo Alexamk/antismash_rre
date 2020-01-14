@@ -79,96 +79,6 @@ def parse_fasta(path,out=None):
         if name not in out:
             out[name] = seq
     return(out)
-    
-def make_diamond_database(protein_file,dbfile=False,threads=False,quiet=False):
-    if not dbfile:
-        name_clean = protein_file[:-6]
-        db_file = '%s.dmnd' %name_clean
-    commands = ['diamond','makedb','--in',protein_file,'-d',dbfile]
-    if threads:
-        commands += ['-p',str(threads)]
-    if quiet:
-        commands += ['--quiet']
-    print(' '.join(commands))
-    call(commands)
-    return(dbfile)
-
-def run_diamond(protein_file,database,outname,replacetabs=False,tmpdir='/dev/shm/',maxhits=100,sens=False,moresens=False,threads=False,evalue=False,quiet=False):
-    commands = ['diamond','blastp','--query',protein_file,'--db',database,\
-    '--max-target-seqs',str(maxhits),'--out',outname,'--tmpdir',tmpdir,'--outfmt',\
-    '6', 'qseqid', 'sseqid', 'pident', 'length', 'mismatch', 'gapopen', 'qlen', 'slen', 'evalue', 'bitscore']
-    if threads:
-        commands += ['-p',str(threads)]
-    if evalue:
-        commands += ['--evalue',str(evalue)]
-    if sens:
-        commands.append('--sensitive')
-    elif moresens:
-        commands.append('--more-sensitive')
-    if quiet:
-        commands += ['--quiet']
-
-    print(' '.join(commands))
-    call(commands)
-    
-def run_mcl(inf,outf,threads,I=1.5,quiet=False):
-    print("MCL START")
-    I = str(I)
-    cmd = ["mcl",inf,"-o",outf,"--abc","-I", I, '-te', str(threads)]
-    if quiet:
-        cmd += ['-show-log','n']
-    print(' '.join(cmd))
-    call(cmd)
-    
-def read_mcl(mcl_file,min_group_size=0):
-    all_groups = []
-    with open(mcl_file,'r') as f:
-        for l in f:
-            group = l.strip().split('\t')
-            if len(group) >= min_group_size:
-                all_groups.append(group)
-    return(all_groups)
-
-def parse_allvall(allvall_file,pident_cutoff):
-    score_dict = {}
-    with open(allvall_file) as handle:
-        for line in handle:
-            tabs = line.strip().split('\t')
-            qseqid,sseqid,pident = tabs[0:3]
-            pident = float(pident)
-            if pident < pident_cutoff or qseqid == sseqid:
-                continue
-            if qseqid not in score_dict:
-                score_dict[qseqid] = {}
-            score_dict[qseqid][sseqid] = pident
-    return score_dict
-
-def average_blast_scores(allvall):
-    # Average the pident from hits that gave hits as queries and as subjects
-    # Only keep one entry per pair
-    out = {}
-    for qseqid in allvall:
-        hits = allvall[qseqid]
-        for hit in hits:
-            if qseqid < hit:
-                pident = allvall[qseqid][hit]
-                try:
-                    pident_b = allvall[hit][qseqid]
-                    pident = float(pident + pident_b) / 2
-                except KeyError:
-                    pass
-                if qseqid not in out:
-                    out[qseqid] = {}
-                out[qseqid][hit] = pident
-    return out
-
-def write_ssn(score_dict,outfile):
-    with open(outfile,'w') as handle:
-        for qseqid in score_dict:
-            hits = score_dict[qseqid]
-            for hit in hits:
-                pident = score_dict[qseqid][hit]
-                handle.write('%s\t%s\t%.2f\n' %(qseqid,hit,pident))
                 
 def write_fasta(all_groups):
     for group in all_groups:
@@ -202,10 +112,7 @@ def expand_alignment(all_groups,settings,resubmit=False):
     else:
         nr_iter = settings.hhbllits_iter
     for group in all_groups:
-        if group.group:
-            infile = group.a3m_file
-        else:
-            infile = group.fasta_file
+        infile = group.fasta_file
         if not os.path.isfile(group.exp_alignment_file) or settings.overwrite_hhblits:
             a3m_hhblits(infile,group.exp_alignment_file,db_path,settings,settings.cores,n=nr_iter)
 
@@ -215,30 +122,6 @@ def a3m_hhblits(inf,outf,db,settings,threads=1,n=3):
     commands = ['hhblits','-cpu',str(threads),'-d',db,'-i',inf,'-oa3m',outf,'-o',dumpfile,'-v','0','-n',str(n)]
     settings.logger.log(' '.join(commands),2)
     call(commands)
-    
-def all_muscle(all_groups,settings):
-    settings.logger.log('Aligning groups',1)
-    for group in all_groups:
-        if group.group:
-            if not os.path.isfile(group.muscle_file):
-                muscle(group.fasta_file,group.muscle_file,settings)
-            if not os.path.isfile(group.a3m_file):
-                reformat(group.muscle_file,group.a3m_file,settings)
-
-def reformat(inf,outf,settings):
-    commands = ['reformat.pl','fas','a3m',inf,outf]
-    settings.logger.log(' '.join(commands),2)
-    call(commands)
-
-def muscle(inf,outf,settings,clw=False,quiet=True):
-    commands = ['muscle','-in',inf,'-out',outf]
-    if clw:
-        commands.append('-clw')
-    if quiet:
-        commands.append('-quiet')
-    settings.logger.log(' '.join(commands),2)
-    call(commands)
-    return outf
 
 def add_ss(group,settings,resubmit=False,remove=False):
     # Only if the alignment was also expanded
@@ -279,7 +162,6 @@ def add_all_ss(groups,settings,resubmit=False):
     settings.logger.log('Adding secondary structure',1)
     for group in groups:
         add_ss(group,settings,resubmit=resubmit)
-        
 
 def hhsearch_all(all_groups,settings):
     settings.logger.log('Running hhsearch',1)
@@ -287,8 +169,6 @@ def hhsearch_all(all_groups,settings):
     for group in all_groups:
         if settings.rrefinder_primary_mode == 'hhpred':
             infile = group.exp_alignment_file
-        elif group.group:
-            infile = group.a3m_file
         else:
             infile = group.fasta_file
         outfile = group.results_file
@@ -333,40 +213,9 @@ def read_hhr(f):
             if name not in results:
                 results[name] = [prob,ev,pv,score,ss,colums,query_hmm,template_hmm]  
     return results
-
-def make_gene_objects(seq_dict,settings):
-    all_genes = []
-    skipped = []
-    for gene,seq in seq_dict.items():
-        if settings.max_length_prot and len(seq) > settings.max_length_prot:
-            settings.logger.log('Not analyzing gene %s (too long)' %(gene),2)
-            skipped.append(gene)
-            continue
-        org_name = gene
-        gene = gene.replace(' ','_')
-        for char in '();:<>|/\\"':
-            gene = gene.replace(char,'')
-        gene = gene.replace("'",'')
-        fasta_file = os.path.join(settings.fasta_folder,gene + '.fasta')
-        results_file = os.path.join(settings.results_folder, '%s.hhr' %(gene))
-        fasta = '>%s\n%s\n' %(gene,seq)
-        gene_obj = Container()
-        gene_obj.setattrs(fasta_file=fasta_file,results_file=results_file,fasta=fasta,name=gene,group=False,org_name=org_name)
-        if settings.mode != 'rrefam' and settings.rrefinder_primary_mode == 'hhpred':
-            exp_alignment_file = os.path.join(settings.fasta_folder,'%s_expalign.a3m' %gene)
-            gene_obj.exp_alignment_file = exp_alignment_file
-        all_genes.append(gene_obj)
-        
-        if settings.resubmit:
-            # Set extra paths for the files
-            RRE_fasta_file = os.path.join(settings.fasta_folder,gene+'_RRE.fasta')
-            RRE_results_file = os.path.join(settings.results_folder,gene+'_RRE.hhr')
-            RRE_expalign_file = os.path.join(settings.fasta_folder,gene+'_RRE_expalign.a3m')
-            gene_obj.setattrs(RRE_fasta_file=RRE_fasta_file,RRE_results_file=RRE_results_file,RRE_expalign_file=RRE_expalign_file)
-        
-    return all_genes,skipped
     
 def convert_cluster(cluster,settings):
+    # Convert the antiSMASH cluster to a GeneObject
     all_genes = []
     skipped = []
     
@@ -388,7 +237,7 @@ def convert_cluster(cluster,settings):
         fasta_file = os.path.join(settings.fasta_folder,clean_name + '.fasta')
         results_file = os.path.join(settings.results_folder, '%s.hhr' %(clean_name))
         fasta = '>%s\n%s\n' %(clean_name,seq)
-        gene_obj = Container()
+        gene_obj = GeneObject()
         gene_obj.setattrs(fasta_file=fasta_file,results_file=results_file,fasta=fasta,name=clean_name,group=False,org_name=org_name)
         if settings.mode != 'rrefam' and settings.rrefinder_primary_mode == 'hhpred':
             exp_alignment_file = os.path.join(settings.fasta_folder,'%s_expalign.a3m' %clean_name)
@@ -403,41 +252,6 @@ def convert_cluster(cluster,settings):
             gene_obj.setattrs(RRE_fasta_file=RRE_fasta_file,RRE_results_file=RRE_results_file,RRE_expalign_file=RRE_expalign_file)
     
     return all_genes,skipped
-
-def make_group_objects(groups,seq_dict,fasta_folder,results_folder,settings):
-    all_groups = []
-    group_nr = 1
-    genes_seen = set()
-    for group in groups:
-        group_name = '%s_group_%i' %(settings.project_name, group_nr)
-        seq_dict_group = dict([(gene,seq_dict[gene]) for gene in group])
-        fasta_group = dict_to_fasta(seq_dict_group)
-        fasta_file = os.path.join(fasta_folder,group_name + '.fasta')
-        text = '_expanded' if settings.rrefinder_primary_mode == 'hhpred' else ''
-        results_file = os.path.join(results_folder, '%s%s.hhr' %(group_name,text))
-        muscle_file = os.path.join(fasta_folder,group_name + '_aligned.fasta')
-        a3m_file = os.path.join(fasta_folder,group_name + '.a3m')
-        group_obj = Container()
-        group_obj.setattrs(name=group_name,genes=group,fasta_file=fasta_file,results_file=results_file,\
-                              muscle_file=muscle_file,a3m_file=a3m_file,fasta=fasta_group,group=True)
-        if settings.rrefinder_primary_mode == 'hhpred':
-            exp_alignment_file = os.path.join(fasta_folder,'%s_expalign.a3m' %group_name)
-            setattr(group_obj,'exp_alignment_file',exp_alignment_file)
-        all_groups.append(group_obj)
-        group_nr += 1
-        
-        if settings.resubmit:
-            # Set extra paths for the files
-            RRE_fasta_file = os.path.join(settings.fasta_folder,group_name+'_RRE.fasta')
-            RRE_results_file = os.path.join(settings.results_folder,group_name+'_RRE.hhr')
-            RRE_expalign_file = os.path.join(settings.fasta_folder,group_name+'_RRE_expalign.a3m')
-            group.setattrs(RRE_fasta_file=RRE_fasta_file,RRE_results_file=RRE_results_file,RRE_expalign_file=RRE_expalign_file)
-            RRE_alignment_file = os.path.join(fasta_folder,group_name+'_RRE.a3m')
-            group.setattrs(RRE_alignment_file=RRE_alignment_file)
-        
-        for gene in group:
-            genes_seen.add(gene)
-    return all_groups,genes_seen
         
 def determine_RRE_locations(group,settings,mode,resubmit=False):
 
@@ -488,12 +302,8 @@ def extract_RRE(group,settings):
             max_end = end
                 
     fasta_out = {}
-
-    if group.group:
-        fasta = parse_fasta(group.muscle_file)
-    else:
-        parts = group.fasta.split('\n')
-        fasta = {parts[0]:parts[1]}
+    parts = group.fasta.split('\n')
+    fasta = {parts[0]:parts[1]}
 
     for name,seq in fasta.items():
         # If multiple genes are part of this group, extract each RRE and make a new alignment from them
@@ -510,13 +320,7 @@ def resubmit_group(group,RRE_targets,settings,cores):
     determine_RRE_locations(group,settings,'rrefinder',resubmit=False)
     # Extract the RRE
     extract_RRE(group,settings)
-    # Convert the alignment to .a3m if necessary and select the relevant infile for MSA expansion
-    if group.group:
-        if not os.path.isfile(group.RRE_alignment_file):
-            reformat(group.RRE_fasta_file,group.RRE_alignment_file)
-        infile = group.RRE_alignment_file
-    else:
-        infile = group.RRE_fasta_file
+    infile = group.RRE_fasta_file
     # Expand the alignment
     db_path = settings.resubmit_database
     if not os.path.isfile(group.RRE_expalign_file):
@@ -738,9 +542,11 @@ def write_results_summary(all_groups,outfile,mode,settings,resubmit=False,hmm=Fa
             for hit in data:
                 res = data[hit]
                 if gene:
+                    # Group represents a group of genes
+                    # Obsolete but left here for the purpose of old parsers
                     out = [group.name,gene,hit] + [str(i) for i in res[0:6]]
                 else:
-                    # Group is actually a gene
+                    # Group actually represents a single gene
                     out = ['N\\A',group.org_name,hit] + [str(i) for i in res[0:6]]
                 out.extend( res[6].split('-') )
                 if regulators and len(res) > 8:
@@ -792,11 +598,7 @@ def write_results_summary(all_groups,outfile,mode,settings,resubmit=False,hmm=Fa
             data_attr = 'RREfam_data'
         for group in all_groups:
             if hasattr(group,hit_attr) and getattr(group,hit_attr):
-                if group.group:
-                    for gene in group.genes:
-                        text,nr_reg_found = write_group_res(group,data_attr,handle,gene)
-                else:
-                    text,nr_reg_found = write_group_res(group,data_attr,handle)
+                text,nr_reg_found = write_group_res(group,data_attr,handle)
                 table_text += text
                 if nr_reg_found > max_reg_found:
                     max_reg_found = nr_reg_found
@@ -829,8 +631,8 @@ def pipeline_operator(all_groups,settings,worker_function,time_sleep=1):
         worker.start()
     
     while any([w.is_alive() for w in workers]):
-        settings.logger.log('%i workers still alive' %(len([w.is_alive() for w in workers])),2)
-        settings.logger.log('Work queue: %i; all_groups: %i' %(work_queue.qsize(),len(all_groups)),2)
+#        settings.logger.log('%i workers still alive' %(len([w.is_alive() for w in workers])),2)
+#        settings.logger.log('Work queue: %i; all_groups: %i' %(work_queue.qsize(),len(all_groups)),2)
         while not results_queue.empty():
             settings.logger.log('Found %i results in queue' %results_queue.qsize(),2)
             res = results_queue.get()
@@ -874,19 +676,10 @@ def pipeline_worker(settings,queue,done_queue):
         if not os.path.isfile(group.fasta_file):
             with open(group.fasta_file,'w') as handle:
                 handle.write(group.fasta)
-        # For gene groups, align and write a3m files
-        if group.group:
-            if not os.path.isfile(group.muscle_file):
-                muscle(group.fasta_file,group.muscle_file)
-            if not os.path.isfile(group.a3m_file):
-                reformat(group.muscle_file,group.a3m_file)
         # If the alignment needs to be expanded, do so here
         if settings_copy.rrefinder_primary_mode == 'hhpred':
             logger.log('Process id %s expanding alignment' %(os.getpid()),2)
-            if group.group:
-                infile = group.a3m_file
-            else:
-                infile = group.fasta_file
+            infile = group.fasta_file
             if settings_copy.resubmit: 
                 nr_iter = settings_copy.resubmit_initial_hhblits_iter
             else:
@@ -898,8 +691,6 @@ def pipeline_worker(settings,queue,done_queue):
         # Run hhblits
         if settings_copy.rrefinder_primary_mode == 'hhpred':
             infile = group.exp_alignment_file
-        elif group.group:
-            infile = group.a3m_file
         else:
             infile = group.fasta_file
         outfile = group.results_file
@@ -1193,7 +984,7 @@ def add_results(all_groups,lanthi_results,resubmit=True):
             start,end = [int(i) for i in best_data_resubmit[6].split('-')]
             rre_result = RREResult('exploratory',resubmit=True,start=start,end=end,score1=best_score,score2=best_score_resubmit)
             gene_results.append(rre_result)
-        # Otherwise just a simple run without resubmit? 
+        # Otherwise just a simple run without resubmit 
         elif not resubmit and hasattr(group,'RRE_hit') and group.RRE_hit:
             best_domain, best_data, best_score, start, end = get_best_hit(group.RRE_data)
             rre_result = RREResult('exploratory',resubmit=False,start=start,end=end,score=best_score)
@@ -1202,10 +993,11 @@ def add_results(all_groups,lanthi_results,resubmit=True):
             all_results[group.org_name] = gene_results
     lanthi_results.RRE_by_locus.update(all_results)      
       
-def main(cluster, lanthi_results, name):
-    
+def main(cluster, lanthi_results, name, options):
+    if options.rrefinder == 'none':
+        return
     configpath = 'RREfinder_config.ini'
-    settings = parse_settings(os.path.join(os.path.dirname(__file__),configpath),name)
+    settings = parse_settings(os.path.join(os.path.dirname(__file__),configpath),name,options)
     if settings.rrefinder_primary_mode == 'hhpred' and not settings.expand_database_path:
         print('Using HHpred as initial mode for RREfinder requires an HHblits database. Please set the path in the config file')
         exit()
@@ -1240,39 +1032,35 @@ def main(cluster, lanthi_results, name):
     
     # Summary files
     if settings.mode == 'rrefinder' or settings.mode == 'both':
-        outfile = os.path.join(settings.data_folder,'%s_rrefinder_results.txt' %settings.project_name)
+        outfile = os.path.join(settings.data_folder,'%s_rrefinder_exploratory_results.txt' %settings.project_name)
         write_results_summary(all_groups,outfile,'rrefinder',settings,hmm=(settings.rrefinder_primary_mode=='hmm'),regulators=settings.regulator_filter)
         if settings.resubmit:
-            outfile_resubmit = os.path.join(settings.data_folder,'%s_rrefinder_RRE_resubmit_results.txt' %(settings.project_name))
+            outfile_resubmit = os.path.join(settings.data_folder,'%s_rrefinder_exploratory_resubmit_results.txt' %(settings.project_name))
             write_results_summary(all_groups,outfile_resubmit,'rrefinder',settings,resubmit=True,regulators=settings.regulator_filter)
     if settings.mode == 'rrefam' or settings.mode == 'both':
-        outfile_rrefam = os.path.join(settings.data_folder,'%s_rrefam_results.txt' %settings.project_name)
+        outfile_rrefam = os.path.join(settings.data_folder,'%s_rrefinder_precision_results.txt' %settings.project_name)
         write_results_summary(all_groups,outfile_rrefam,'rrefam',settings,resubmit=False,hmm=True)
     
     # Add the results to the LanthiResults object
     add_results(all_groups, lanthi_results)
     
-    
     t1 = time.time()
     settings.logger.log('Finished. Total time: %.2f seconds (on %i cores)' %((t1-t0),settings.cores),1)
     if settings.mode == 'rrefinder' or settings.mode == 'both':
-        settings.logger.log('RREfinder hits found: %i out of %i' %(len([i for i in all_groups if i.RRE_hit]),len(all_groups)),1)
         if settings.resubmit:
-            settings.logger.log('RREfinder resubmit hits found: %i out of %i' %(len([i for i in all_groups if i.RRE_hit and i.RRE_resubmit_hit]),len(all_groups)),1)
+            settings.logger.log('RREfinder exploratory mode hits found: %i out of %i' %(len([i for i in all_groups if i.RRE_hit and i.RRE_resubmit_hit]),len(all_groups)),1)
+        else:
+            settings.logger.log('RREfinder exploratory mode hits found: %i out of %i' %(len([i for i in all_groups if i.RRE_hit]),len(all_groups)),1)
     if settings.mode == 'rrefam' or settings.mode == 'both':
-        settings.logger.log('RREFam hits found: %i out of %i' %(len([i for i in all_groups if i.RREfam_hit]),len(all_groups)),1)
+        settings.logger.log('RREfinder precision mode hits found: %i out of %i' %(len([i for i in all_groups if i.RREfam_hit]),len(all_groups)),1)
     
     return 
 
 class Container():
-    # Container for provided settings and to store info on genes
+    # Simple container used to store info on various things
     def __init__(self):
         pass
-    def __repr__(self):
-        if hasattr(self,'name'):
-            return('Container object (%s)' %self.name)
-        else:
-            return('Container object')
+        
     def setattrs(self,**kwargs):
         for key,value in kwargs.items():
             setattr(self,key,value)
@@ -1282,6 +1070,13 @@ class Container():
         for item,value in self.__dict__.items():
             setattr(c,item,value)
         return c
+            
+            
+class GeneObject(Container):
+    pass  
+        
+class SettingsObject(Container):
+    pass
             
 class Log():
     def __init__(self,logfile,verbosity,remove_first=True):
@@ -1306,7 +1101,7 @@ class RREResult(module_results.ModuleResults):
 def parse_config(configpath):
     config = configparser.ConfigParser()
     config.read(configpath)
-    settings = Container()
+    settings = SettingsObject()
     paths = ['outputfolder',
              'regulator_database',
              'rre_database_path',
@@ -1344,17 +1139,14 @@ def parse_config(configpath):
             setattr(settings,item,value)
     return settings
 
-def parse_settings(configpath,name):
+def parse_settings(configpath,name,options):
     settings = parse_config(configpath)
-    if settings.mode == 'precision':
+    if options.rrefinder == 'precision':
         settings.mode = 'rrefam'
-    elif settings.mode == 'exploratory':
+    elif options.rrefinder == 'exploratory':
         settings.mode = 'rrefinder'
+    elif options.rrefinder == 'both':
+        settings.mode = 'both'
     settings.project_name = name
     return settings
 
-#if __name__ == '__main__':
-#    record = Container()
-#    record.id = 'test'
-#    configpath = 'RREfinder_config.ini'
-#    settings = parse_settings(os.path.join(os.path.dirname(__file__),configpath),record)
