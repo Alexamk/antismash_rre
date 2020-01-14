@@ -550,6 +550,14 @@ def advanced_options() -> ModuleArgs:
                      action='store_true',
                      default=False,
                      help="Run without FIMO (lowers accuracy of RiPP precursor predictions)")
+    group.add_option('--rrefinder',
+                     dest='rrefinder',
+                     default='both',
+                     choices=['none','precision','exploratory','both'],
+                     help=("Use RREFinder to find RREs in specific RiPP BGCs."
+                           "Can be run in precision mode or exploratory mode (default: both). " 
+                           "Only works on lasso peptides, lanthipeptides, thiopeptides "
+                           "and sactipeptides."))
     group.add_option('--executable-paths',
                      dest='executables',
                      metavar="EXECUTABLE:PATH,EXECUTABLE2:PATH2,...",
