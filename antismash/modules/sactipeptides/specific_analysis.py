@@ -22,6 +22,8 @@ from antismash.common.secmet.qualifiers import SecMetQualifier
 from antismash.common.secmet.locations import location_from_string
 from antismash.common.signature import HmmSignature
 
+from antismash.config import ConfigType
+
 from antismash.modules.lanthipeptides.RRE import main as RRE_main
 from antismash.modules.lanthipeptides.RRE import RREResult
 
@@ -584,7 +586,7 @@ def annotate_orfs(cds_features: List[secmet.CDSFeature], hmm_results: Dict[str, 
             cds.sec_met = SecMetQualifier(domains)
 
 
-def specific_analysis(record: secmet.Record) -> SactiResults:
+def specific_analysis(record: secmet.Record, options: ConfigType) -> SactiResults:
     """ Analyse each sactipeptide cluster and find precursors within it.
         If an unannotated ORF would contain the precursor, it will be annotated.
 
@@ -628,7 +630,7 @@ def specific_analysis(record: secmet.Record) -> SactiResults:
         # Analyze the cluster with RREfinder
         counter += 1
         name = '%s_%s_%s' %(record.id,cluster.product,counter)
-        RRE_main(cluster,results,name)
+        RRE_main(cluster,results,name,options)
 
     if not motif_count:
         logging.debug("Found no sactipeptide motifs")

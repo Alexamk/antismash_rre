@@ -17,6 +17,8 @@ from antismash.common.secmet import Region
 from antismash.common.secmet.qualifiers.prepeptide_qualifiers import ThioQualifier
 from antismash.common.signature import HmmSignature
 
+from antismash.config import ConfigType
+
 from antismash.modules.lanthipeptides.RRE import main as RRE_main
 from antismash.modules.lanthipeptides.RRE import RREResult
 from .rodeo import run_rodeo
@@ -596,7 +598,7 @@ def result_vec_to_feature(orig_feature: secmet.CDSFeature, res_vec: Thiopeptide)
     return feature
 
 
-def specific_analysis(record: secmet.Record) -> ThioResults:
+def specific_analysis(record: secmet.Record, options: ConfigType) -> ThioResults:
     """ Runs thiopeptide prediction over all cluster features and any extra ORFs
         that are found not overlapping with existing features
     """
@@ -632,7 +634,7 @@ def specific_analysis(record: secmet.Record) -> ThioResults:
         # Analyze the cluster with RREfinder
         counter += 1
         name = '%s_%s_%s' %(record.id,cluster.product,counter)
-        RRE_main(cluster,results,name)
+        RRE_main(cluster,results,name,options)
             
     logging.debug("Thiopeptides marked %d motifs", len(results.motifs))
     return results

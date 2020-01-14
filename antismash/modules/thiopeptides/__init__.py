@@ -80,8 +80,8 @@ def regenerate_previous_results(results: Dict[str, Any], record: Record, _option
     return regenned
 
 
-def run_on_record(record: Record, previous_results: ThioResults, _options: ConfigType) -> ThioResults:
+def run_on_record(record: Record, previous_results: ThioResults, options: ConfigType) -> ThioResults:
     """ Run the thiopeptide analysis on the given record"""
     if previous_results:
         return previous_results
-    return specific_analysis(record)
+    return specific_analysis(record, options)

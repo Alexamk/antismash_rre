@@ -72,8 +72,8 @@ def regenerate_previous_results(previous: Dict[Any, str], record: Record,
     return SactiResults.from_json(previous, record)
 
 
-def run_on_record(record: Record, results: Optional[SactiResults], _options: ConfigType) -> SactiResults:
+def run_on_record(record: Record, results: Optional[SactiResults], options: ConfigType) -> SactiResults:
     """ Run the sactipeptide analysis over the given record """
     if results:
         return results
-    return specific_analysis(record)
+    return specific_analysis(record,options)

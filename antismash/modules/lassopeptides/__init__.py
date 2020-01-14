@@ -79,8 +79,8 @@ def regenerate_previous_results(previous: Dict[str, Any], record: Record,
     return LassoResults.from_json(previous, record)
 
 
-def run_on_record(record: Record, results: LassoResults, _options: ConfigType) -> LassoResults:
+def run_on_record(record: Record, results: LassoResults, options: ConfigType) -> LassoResults:
     """ Finds all precursors within lassopeptide clusters """
     if results and isinstance(results, LassoResults):
         return results
-    return specific_analysis(record)
+    return specific_analysis(record,options)

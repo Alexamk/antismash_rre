@@ -765,7 +765,7 @@ def run_specific_analysis(record: Record, options: ConfigType) -> LanthiResults:
         # Analyze the cluster with RREfinder
         counter += 1
         name = '%s_%s_%s' %(record.id,cluster.product,counter)
-        RRE_main(cluster,results,name)
+        RRE_main(cluster,results,name,options)
 
     logging.debug("Lanthipeptide module marked %d motifs", sum(map(len, results.motifs_by_locus)))
     return results

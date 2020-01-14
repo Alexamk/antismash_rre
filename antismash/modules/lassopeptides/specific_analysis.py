@@ -21,6 +21,7 @@ from antismash.common.secmet import Record, CDSFeature, Protocluster, Prepeptide
 from antismash.common.secmet.locations import location_from_string
 from antismash.common.secmet.qualifiers.prepeptide_qualifiers import LassoQualifier
 from antismash.config import get_config as get_global_config
+from antismash.config import ConfigType
 
 from antismash.modules.lanthipeptides.RRE import main as RRE_main
 from antismash.modules.lanthipeptides.RRE import RREResult
@@ -708,7 +709,7 @@ def result_vec_to_motif(query: CDSFeature, result: Lassopeptide) -> Prepeptide:
     return feature
 
 
-def specific_analysis(record: Record) -> LassoResults:
+def specific_analysis(record: Record, options: ConfigType) -> LassoResults:
     """ Runs the full lassopeptide analysis over the given record
 
         Arguments:
@@ -745,7 +746,7 @@ def specific_analysis(record: Record) -> LassoResults:
         # Analyze the cluster with RREfinder
         counter += 1
         name = '%s_%s_%s' %(record.id,cluster.product,counter)
-        RRE_main(cluster,results,name)
+        RRE_main(cluster,results,name,options)
 
     logging.debug("Lassopeptide module marked %d motifs", motif_count)
     return results
